@@ -16,6 +16,7 @@ import org.slf4j.LoggerFactory;
 
 import java.io.UnsupportedEncodingException;
 import java.net.URLDecoder;
+import java.nio.charset.Charset;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
@@ -68,10 +69,9 @@ public class HttpServerHandler extends HttpBaseHandler{
     private Map<String,Object> getParam(String uri) throws UnsupportedEncodingException {
         Map<String, Object> map = new HashMap<>();
         String path = URLDecoder.decode(uri, chartSet);
-        String cont = uri.substring(path.lastIndexOf("?") + 1);
+        String cont = path.substring(path.lastIndexOf("?") + 1);
         if (cont.contains("=")){
-            List<String> params = Arrays.stream(cont.split("&")).map(e -> e.trim()).collect(Collectors.toList());
-
+            List<String> params = Arrays.stream(cont.split("&|&&")).map(e -> e.trim()).collect(Collectors.toList());
             for (String param : params) {
                 String[] kv = param.split("=", 2);
                 map.put(kv[0], kv[1]);
@@ -120,7 +120,7 @@ public class HttpServerHandler extends HttpBaseHandler{
                     DefaultFullHttpResponse response = new DefaultFullHttpResponse(
                             HttpVersion.HTTP_1_1,
                             HttpResponseStatus.METHOD_NOT_ALLOWED,
-                            Unpooled.wrappedBuffer(resp.getBytes())
+                            Unpooled.wrappedBuffer(resp.getBytes(Charset.forName("utf-8")))
                     );
                     response.headers().setInt(ContentLength, response.content().readableBytes());
 
@@ -139,6 +139,7 @@ public class HttpServerHandler extends HttpBaseHandler{
                 }
                 logger.info("uri:{}, header:{}", uri, mockDataInfo.getHeader());
                 String template = StringUtils.isEmpty(mockDataInfo.getResp_context())?"":mockDataInfo.getResp_context();
+                logger.info("uri:{}, param:{}", uri, JSON.toJSONString(param));
                 //判断是否动态解析,static:静态,dynamics:动态
                 if(mockDataInfo.getResolve_type().equalsIgnoreCase("dynamics")){
                     //jinjava解析模板
@@ -150,7 +151,7 @@ public class HttpServerHandler extends HttpBaseHandler{
                 DefaultFullHttpResponse response = new DefaultFullHttpResponse(
                         HttpVersion.HTTP_1_1,
                         HttpResponseStatus.OK,
-                        Unpooled.wrappedBuffer(resp.getBytes())
+                        Unpooled.wrappedBuffer(resp.getBytes(Charset.forName("utf-8")))
                 );
                 for (String key:header.keySet()){
                     response.headers().set(key, header.get(key));
