@@ -17,10 +17,7 @@ import org.slf4j.LoggerFactory;
 import java.io.UnsupportedEncodingException;
 import java.net.URLDecoder;
 import java.nio.charset.Charset;
-import java.util.Arrays;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
@@ -104,9 +101,11 @@ public class HttpServerHandler extends HttpBaseHandler{
 
 
     public HttpResponse diapathcer(FullHttpRequest request) throws UnsupportedEncodingException {
+        //生成请求ID
+        String request_id = UUID.randomUUID().toString();
         String uri = request.uri();
         String method = request.method().name();
-        logger.info("接收到请求:{}, 请求类型:{}", uri, method);
+        logger.info("request:{}, 接收到请求:{}, 请求类型:{}", request_id, uri, method);
         try{
             //解析参数
             Map<String,Object> param = getReqContent(request);
@@ -116,7 +115,7 @@ public class HttpServerHandler extends HttpBaseHandler{
             if(LoadData2Memory.mockDataInfos.containsKey(url)){
                 MockDataInfo mockDataInfo= LoadData2Memory.mockDataInfos.get(url);
                 if(!mockDataInfo.getReq_type().equalsIgnoreCase(method)){
-                    logger.error("uri:{}, request method:{}, but allow method:{}", uri, method, mockDataInfo.getReq_type());
+                    logger.error("request:{}, uri:{}, request method:{}, but allow method:{}", request_id, uri, method, mockDataInfo.getReq_type());
                     DefaultFullHttpResponse response = new DefaultFullHttpResponse(
                             HttpVersion.HTTP_1_1,
                             HttpResponseStatus.METHOD_NOT_ALLOWED,
@@ -137,9 +136,9 @@ public class HttpServerHandler extends HttpBaseHandler{
                     }
                     header.put(kv[0], kv[1]);
                 }
-                logger.info("uri:{}, header:{}", uri, mockDataInfo.getHeader());
+                logger.info("request:{}, uri:{}, header:{}", request_id, uri, mockDataInfo.getHeader());
                 String template = StringUtils.isEmpty(mockDataInfo.getResp_context())?"":mockDataInfo.getResp_context();
-                logger.info("uri:{}, param:{}", uri, JSON.toJSONString(param));
+                logger.info("request:{}, uri:{}, param:{}", request_id, uri, JSON.toJSONString(param));
                 //判断是否动态解析,static:静态,dynamics:动态
                 if(mockDataInfo.getResolve_type().equalsIgnoreCase("dynamics")){
                     //jinjava解析模板
@@ -147,7 +146,7 @@ public class HttpServerHandler extends HttpBaseHandler{
                     template = jinjava.render(template, param);
                 }
                 resp = template;
-                logger.info("uri:{}, resp:{}", uri, resp);
+                logger.info("request:{}, uri:{}, resp:{}", request_id, uri, resp);
                 DefaultFullHttpResponse response = new DefaultFullHttpResponse(
                         HttpVersion.HTTP_1_1,
                         HttpResponseStatus.OK,
@@ -160,6 +159,7 @@ public class HttpServerHandler extends HttpBaseHandler{
 
                 return response;
             }else{
+                logger.error("request:{}, uri:{}, request method:{}, not found uri", request_id, uri, method);
                 DefaultFullHttpResponse response = new DefaultFullHttpResponse(
                         HttpVersion.HTTP_1_1,
                         HttpResponseStatus.NOT_FOUND,
@@ -170,6 +170,7 @@ public class HttpServerHandler extends HttpBaseHandler{
                 return response;
             }
         }catch (Exception e){
+            logger.error("request:{}, uri:{}, request method:{}, error:{} ", request_id, uri, method, e.getMessage());
             DefaultFullHttpResponse response = new DefaultFullHttpResponse(
                     HttpVersion.HTTP_1_1,
                     HttpResponseStatus.EXPECTATION_FAILED,
