@@ -2,9 +2,16 @@
 
 
 ## 打包
-    对对对
+    sh build.sh
 
 ## 启动
-    顶顶顶顶
+
+    linux:
+        cd xx-SNAPSHOT
+        sh bin/start.sh
+        
+    windows:
+        cd xx-SNAPSHOT
+        bin\start.bat
 
 

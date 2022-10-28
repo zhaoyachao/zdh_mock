@@ -2,12 +2,14 @@ package com.zyc;
 
 import com.zyc.netty.NettyServer;
 import com.zyc.schedule.LoadData2Memory;
+import com.zyc.util.DbUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.util.Properties;
 
 public class MockServer {
@@ -17,14 +19,17 @@ public class MockServer {
         String conf_path = MockServer.class.getClassLoader().getResource("application.properties").getPath();
 
         Properties properties = new Properties();
-        properties.load(MockServer.class.getClassLoader().getResourceAsStream("application.properties"));
+        InputStream inputStream=MockServer.class.getClassLoader().getResourceAsStream("application.properties");
+        properties.load(inputStream);
         File confFile = new File("conf/application.properties");
         if(confFile.exists()){
             conf_path = confFile.getPath();
-            FileInputStream fis=new FileInputStream(confFile);
-            properties.load(fis);
+            inputStream = new FileInputStream(confFile);
+            properties.load(inputStream);
         }
+
         logger.info("加载配置文件路径:{}", conf_path);
+        DbUtils.init(properties);
         new Thread(new Runnable() {
             @Override
             public void run() {

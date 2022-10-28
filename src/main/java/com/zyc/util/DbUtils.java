@@ -3,6 +3,9 @@ package com.zyc.util;
 import com.alibaba.druid.pool.DruidDataSourceFactory;
 
 import javax.sql.DataSource;
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.InputStream;
 import java.sql.*;
 import java.util.*;
 
@@ -10,14 +13,12 @@ public class DbUtils {
 
     public static DataSource dataSource = null;
 
-    static {
+    public static void init(Properties properties){
         try {
-            Properties properties = new Properties();
-            properties.load(DbUtils.class.getClassLoader().getResourceAsStream("application.properties"));
-
             dataSource = DruidDataSourceFactory.createDataSource(properties);
         } catch (Exception e) {
             e.printStackTrace();
+            System.exit(-1);
         }
     }
 

@@ -18,9 +18,7 @@ import java.io.UnsupportedEncodingException;
 import java.net.URLDecoder;
 import java.nio.charset.Charset;
 import java.util.*;
-import java.util.concurrent.LinkedBlockingQueue;
-import java.util.concurrent.ThreadPoolExecutor;
-import java.util.concurrent.TimeUnit;
+import java.util.concurrent.*;
 import java.util.stream.Collectors;
 
 public class HttpServerHandler extends HttpBaseHandler{
@@ -103,7 +101,7 @@ public class HttpServerHandler extends HttpBaseHandler{
     public HttpResponse diapathcer(FullHttpRequest request) throws UnsupportedEncodingException {
         //生成请求ID
         String request_id = UUID.randomUUID().toString();
-        String uri = request.uri();
+        String uri = URLDecoder.decode(request.uri(), chartSet);
         String method = request.method().name();
         logger.info("request:{}, 接收到请求:{}, 请求类型:{}", request_id, uri, method);
         try{
@@ -119,45 +117,64 @@ public class HttpServerHandler extends HttpBaseHandler{
                     DefaultFullHttpResponse response = new DefaultFullHttpResponse(
                             HttpVersion.HTTP_1_1,
                             HttpResponseStatus.METHOD_NOT_ALLOWED,
-                            Unpooled.wrappedBuffer(resp.getBytes(Charset.forName("utf-8")))
+                            Unpooled.wrappedBuffer(resp.getBytes(Charset.forName(mockDataInfo.getResp_encode())))
                     );
                     response.headers().setInt(ContentLength, response.content().readableBytes());
 
                     return response;
                 }
 
-                //返回编码,解析类型, 返回header,返回类型,返回内容
-                Map<String,Object> header=new HashMap<>();
-                String[] headers = mockDataInfo.getHeader().split("\r\n|\n");
-                for (String headerStr:headers){
-                    String[] kv = headerStr.split(":",2);
-                    if(kv.length!=2){
-                        continue;
-                    }
-                    header.put(kv[0], kv[1]);
-                }
-                logger.info("request:{}, uri:{}, header:{}", request_id, uri, mockDataInfo.getHeader());
-                String template = StringUtils.isEmpty(mockDataInfo.getResp_context())?"":mockDataInfo.getResp_context();
-                logger.info("request:{}, uri:{}, param:{}", request_id, uri, JSON.toJSONString(param));
-                //判断是否动态解析,static:静态,dynamics:动态
-                if(mockDataInfo.getResolve_type().equalsIgnoreCase("dynamics")){
-                    //jinjava解析模板
-                    Jinjava jinjava=new Jinjava();
-                    template = jinjava.render(template, param);
-                }
-                resp = template;
-                logger.info("request:{}, uri:{}, resp:{}", request_id, uri, resp);
-                DefaultFullHttpResponse response = new DefaultFullHttpResponse(
-                        HttpVersion.HTTP_1_1,
-                        HttpResponseStatus.OK,
-                        Unpooled.wrappedBuffer(resp.getBytes(Charset.forName("utf-8")))
-                );
-                for (String key:header.keySet()){
-                    response.headers().set(key, header.get(key));
-                }
-                response.headers().setInt(ContentLength, response.content().readableBytes());
+                Callable<DefaultHttpResponse> task = new Callable<DefaultHttpResponse>(){
+                    @Override
+                    public DefaultHttpResponse call() throws Exception {
+                        //返回编码,解析类型, 返回header,返回类型,返回内容
+                        Map<String,Object> header=new HashMap<>();
+                        String[] headers = mockDataInfo.getHeader().split("\r\n|\n");
+                        for (String headerStr:headers){
+                            String[] kv = headerStr.split(":",2);
+                            if(kv.length!=2){
+                                continue;
+                            }
+                            header.put(kv[0], kv[1]);
+                        }
 
-                return response;
+                        header.put("Content-Type", mockDataInfo.getResp_content_type()+";charset:"+mockDataInfo.getResp_encode());
+
+                        logger.info("request:{}, uri:{}, header:{}", request_id, uri, header);
+                        String template = StringUtils.isEmpty(mockDataInfo.getResp_context())?"":mockDataInfo.getResp_context();
+                        logger.info("request:{}, uri:{}, param:{}", request_id, uri, JSON.toJSONString(param));
+                        //判断是否动态解析,static:静态,dynamics:动态
+                        if(mockDataInfo.getResolve_type().equalsIgnoreCase("dynamics")){
+                            //jinjava解析模板
+                            Jinjava jinjava=new Jinjava();
+                            template = jinjava.render(template, param);
+                        }
+                        String resp = template;
+                        logger.info("request:{}, uri:{}, resp:{}", request_id, uri, resp);
+                        DefaultFullHttpResponse response = new DefaultFullHttpResponse(
+                                HttpVersion.HTTP_1_1,
+                                HttpResponseStatus.OK,
+                                Unpooled.wrappedBuffer(resp.getBytes(Charset.forName(mockDataInfo.getResp_encode())))
+                        );
+                        for (String key:header.keySet()){
+                            response.headers().set(key, header.get(key));
+                        }
+                        response.headers().setInt(ContentLength, response.content().readableBytes());
+                        return response;
+                    }
+                };
+                Future<DefaultHttpResponse> future = threadpool.submit(task);
+                try{
+                    return future.get(Long.parseLong(mockDataInfo.getReq_timeout()), TimeUnit.SECONDS);
+                }catch (TimeoutException e){
+                    DefaultFullHttpResponse response = new DefaultFullHttpResponse(
+                            HttpVersion.HTTP_1_1,
+                            HttpResponseStatus.REQUEST_TIMEOUT,
+                            Unpooled.wrappedBuffer("请求超时".getBytes("utf-8"))
+                    );
+                    response.headers().setInt(ContentLength, response.content().readableBytes());
+                    return response;
+                }
             }else{
                 logger.error("request:{}, uri:{}, request method:{}, not found uri", request_id, uri, method);
                 DefaultFullHttpResponse response = new DefaultFullHttpResponse(
