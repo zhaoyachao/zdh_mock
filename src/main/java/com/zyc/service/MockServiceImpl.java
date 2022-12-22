@@ -21,7 +21,7 @@ public class MockServiceImpl {
     }
 
     public List<MockDataInfo> selectAll() throws Exception {
-        List<Map<String,Object>> r = dbUtils.R("select a.* from we_mock_data_info a where is_delete=0");
+        List<Map<String,Object>> r = dbUtils.R("select a.* from we_mock_data_info a where is_delete=0 and is_disenable='false'");
 
         String rs = JSONObject.toJSONString(r);
 

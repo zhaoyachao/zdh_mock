@@ -83,6 +83,8 @@ public class MockDataInfo {
      */
     private String resp_context;
 
+    private String is_disenable;
+
     /**
      * @return id
      */
@@ -379,5 +381,13 @@ public class MockDataInfo {
      */
     public void setResp_context(String resp_context) {
         this.resp_context = resp_context;
+    }
+
+    public String getIs_disenable() {
+        return is_disenable;
+    }
+
+    public void setIs_disenable(String is_disenable) {
+        this.is_disenable = is_disenable;
     }
 }
