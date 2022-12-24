@@ -1,9 +1,12 @@
 package com.zyc.netty;
 
 
+import cn.hutool.core.text.StrFormatter;
 import com.alibaba.fastjson.JSON;
 import com.hubspot.jinjava.Jinjava;
 import com.zyc.entity.MockDataInfo;
+import com.zyc.entity.MockLogInfo;
+import com.zyc.schedule.InsertLog2Db;
 import com.zyc.schedule.LoadData2Memory;
 import io.netty.buffer.Unpooled;
 import io.netty.channel.ChannelFutureListener;
@@ -104,6 +107,7 @@ public class HttpServerHandler extends HttpBaseHandler{
         String uri = URLDecoder.decode(request.uri(), chartSet);
         String method = request.method().name();
         logger.info("request:{}, 接收到请求:{}, 请求类型:{}", request_id, uri, method);
+        MockLogInfo mockLogInfo=new MockLogInfo();
         try{
             //解析参数
             Map<String,Object> param = getReqContent(request);
@@ -112,7 +116,11 @@ public class HttpServerHandler extends HttpBaseHandler{
             String url=uri.split("\\?")[0];
             if(LoadData2Memory.mockDataInfos.containsKey(url)){
                 MockDataInfo mockDataInfo= LoadData2Memory.mockDataInfos.get(url);
+                String job_id = mockDataInfo.getId();
+                mockLogInfo.setTask_logs_id(request_id);
                 if(!mockDataInfo.getReq_type().equalsIgnoreCase(method)){
+                    mockLogInfo = mockLogInfo(job_id, request_id, "ERROR",StrFormatter.format("request:{}, uri:{}, request method:{}, but allow method:{}", request_id, uri, method, mockDataInfo.getReq_type()));
+                    InsertLog2Db.blockingDeque.add(mockLogInfo);
                     logger.error("request:{}, uri:{}, request method:{}, but allow method:{}", request_id, uri, method, mockDataInfo.getReq_type());
                     DefaultFullHttpResponse response = new DefaultFullHttpResponse(
                             HttpVersion.HTTP_1_1,
@@ -141,8 +149,13 @@ public class HttpServerHandler extends HttpBaseHandler{
                         header.put("Content-Type", mockDataInfo.getResp_content_type()+";charset:"+mockDataInfo.getResp_encode());
 
                         logger.info("request:{}, uri:{}, header:{}", request_id, uri, header);
+
+                        MockLogInfo mockLogInfo1 = mockLogInfo(job_id, request_id, "INFO",StrFormatter.format("request:{}, uri:{}, header:{}", request_id, uri, header));
+                        InsertLog2Db.blockingDeque.add(mockLogInfo1);
                         String template = StringUtils.isEmpty(mockDataInfo.getResp_context())?"":mockDataInfo.getResp_context();
                         logger.info("request:{}, uri:{}, param:{}", request_id, uri, JSON.toJSONString(param));
+                        mockLogInfo1 = mockLogInfo(job_id, request_id, "INFO",StrFormatter.format("request:{}, uri:{}, param:{}", request_id, uri, JSON.toJSONString(param)));
+                        InsertLog2Db.blockingDeque.add(mockLogInfo1);
                         //判断是否动态解析,static:静态,dynamics:动态
                         if(mockDataInfo.getResolve_type().equalsIgnoreCase("dynamics")){
                             //jinjava解析模板
@@ -151,6 +164,8 @@ public class HttpServerHandler extends HttpBaseHandler{
                         }
                         String resp = template;
                         logger.info("request:{}, uri:{}, resp:{}", request_id, uri, resp);
+                        mockLogInfo1 = mockLogInfo(job_id, request_id, "INFO",StrFormatter.format("request:{}, uri:{}, resp:{}", request_id, uri, resp));
+                        InsertLog2Db.blockingDeque.add(mockLogInfo1);
                         DefaultFullHttpResponse response = new DefaultFullHttpResponse(
                                 HttpVersion.HTTP_1_1,
                                 HttpResponseStatus.OK,
@@ -167,6 +182,9 @@ public class HttpServerHandler extends HttpBaseHandler{
                 try{
                     return future.get(Long.parseLong(mockDataInfo.getReq_timeout()), TimeUnit.SECONDS);
                 }catch (TimeoutException e){
+                    logger.error("request:{}, uri:{}, resp:{}", request_id, uri, "请求超时");
+                    MockLogInfo mockLogInfo1 = mockLogInfo(job_id, request_id, "ERROR",StrFormatter.format("request:{}, uri:{}, resp:{}", request_id, uri, "请求超时"));
+                    InsertLog2Db.blockingDeque.add(mockLogInfo1);
                     DefaultFullHttpResponse response = new DefaultFullHttpResponse(
                             HttpVersion.HTTP_1_1,
                             HttpResponseStatus.REQUEST_TIMEOUT,
@@ -199,5 +217,15 @@ public class HttpServerHandler extends HttpBaseHandler{
         }
 
 
+    }
+
+    public MockLogInfo mockLogInfo(String job_id, String request_id, String level, String msg){
+        MockLogInfo mockLogInfo=new MockLogInfo();
+        mockLogInfo.setJob_id(job_id);
+        mockLogInfo.setTask_logs_id(request_id);
+        mockLogInfo.setLevel(level);
+        mockLogInfo.setMsg(msg);
+
+        return mockLogInfo;
     }
 }

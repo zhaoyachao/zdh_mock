@@ -1,6 +1,7 @@
 package com.zyc;
 
 import com.zyc.netty.NettyServer;
+import com.zyc.schedule.InsertLog2Db;
 import com.zyc.schedule.LoadData2Memory;
 import com.zyc.util.DbUtils;
 import org.slf4j.Logger;
@@ -39,6 +40,22 @@ public class MockServer {
                         LoadData2Memory loadData2Memory=new LoadData2Memory();
                         loadData2Memory.load(properties);
                         Thread.sleep(1000*20);
+                    } catch (Exception e) {
+                        e.printStackTrace();
+                    }
+                }
+
+            }
+        }).start();
+
+        new Thread(new Runnable() {
+            @Override
+            public void run() {
+
+                while (true){
+                    try {
+                        InsertLog2Db insertLog2Db=new InsertLog2Db();
+                        insertLog2Db.insert();
                     } catch (Exception e) {
                         e.printStackTrace();
                     }

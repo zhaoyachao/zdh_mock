@@ -74,4 +74,37 @@ public class DbUtils {
         }
     }
 
+    /**
+     * 数据库记录增删改的方法
+     * @param sql        字符串，要执行的sql语句  如果其中有变量的话，就用  ‘"+变量+"’
+     */
+    public String[] CUD(String sql, Object[] args){
+        Connection connection = null;
+        PreparedStatement preparedStatement = null;
+        int result = 0;
+        String ret="true";
+        String e_msg="";
+        try {
+            connection = getConn();
+            preparedStatement = connection.prepareStatement(sql);
+            for (int i = 0; i < args.length; i++) {
+                preparedStatement.setObject(i+1, args[i]);
+            }
+            preparedStatement.execute();
+        } catch (Exception e) {
+            String error = "类:"+Thread.currentThread().getStackTrace()[1].getClassName()+" 函数:"+Thread.currentThread().getStackTrace()[1].getMethodName()+ " 异常: {}";
+            e_msg=e.getMessage();
+            ret="false";
+        }finally {
+            if (connection != null) {
+                try {
+                    connection.close();
+                } catch (SQLException e) {
+                    e.printStackTrace();
+                }
+            }
+        }
+
+        return new String[]{ret,e_msg};
+    }
 }
