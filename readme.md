@@ -7,6 +7,14 @@
    [zdh_web](https://github.com/zhaoyachao/zdh_web)
     
 
+#  在线预览
+   [http://zycblog.cn:8081/login](http://zycblog.cn:8081/login)
+   
+    用户名：zyc
+    密码：123456
+    
+    服务器资源有限,界面只供预览,不包含数据处理部分,谢码友们手下留情
+
 ## 打包
     sh build.sh
 
