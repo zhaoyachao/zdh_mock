@@ -117,7 +117,7 @@ public class HttpServerHandler extends HttpBaseHandler{
             String url=uri.split("\\?")[0];
             if(url.equalsIgnoreCase("/api/short/generator")){
                 String path = NettyServer.properties.getProperty("short.path", "./data/short");
-                String id_path = NettyServer.properties.getProperty("short.path", "./data/shortid");
+                String id_path = NettyServer.properties.getProperty("short.pathid", "./data/shortid");
                 Long short_id = RocksDBUtil.getIncr(id_path, "short_id");
                 String short_url = "/d/"+short_id;
                 String remote_url = param.get("url").toString();
