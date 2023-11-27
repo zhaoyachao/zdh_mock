@@ -1,9 +1,9 @@
-package com.zyc.service;
+package com.zyc.mock.service;
 
 import com.alibaba.fastjson.JSON;
 import com.alibaba.fastjson.JSONObject;
-import com.zyc.entity.MockDataInfo;
-import com.zyc.util.DbUtils;
+import com.zyc.mock.entity.MockDataInfo;
+import com.zyc.mock.util.DbUtils;
 
 import java.util.List;
 import java.util.Map;

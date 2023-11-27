@@ -1,8 +1,8 @@
-package com.zyc.schedule;
+package com.zyc.mock.schedule;
 
-import com.zyc.entity.MockDataInfo;
-import com.zyc.service.MockServiceImpl;
-import com.zyc.util.DbUtils;
+import com.zyc.mock.entity.MockDataInfo;
+import com.zyc.mock.service.MockServiceImpl;
+import com.zyc.mock.util.DbUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 

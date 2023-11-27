@@ -1,4 +1,4 @@
-package com.zyc.netty;
+package com.zyc.mock.netty;
 
 import io.netty.bootstrap.ServerBootstrap;
 import io.netty.channel.ChannelFuture;
@@ -20,10 +20,12 @@ import java.util.Properties;
 public class NettyServer {
     Logger logger= LoggerFactory.getLogger(NettyServer.class);
 
+    public static Properties properties;
+
     public void start(Properties properties) throws IOException, InterruptedException {
         String host=properties.getProperty("host");
         String port=properties.getProperty("port");
-
+        NettyServer.properties = properties;
         this.bind(host,port);
     }
 

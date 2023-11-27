@@ -1,12 +1,12 @@
-package com.zyc;
+package com.zyc.mock;
 
-import com.zyc.netty.NettyServer;
-import com.zyc.schedule.InsertLog2Db;
-import com.zyc.schedule.LoadData2Memory;
-import com.zyc.util.DbUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.zyc.mock.util.DbUtils;
+import com.zyc.mock.schedule.LoadData2Memory;
+import com.zyc.mock.schedule.InsertLog2Db;
+import com.zyc.mock.netty.NettyServer;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;

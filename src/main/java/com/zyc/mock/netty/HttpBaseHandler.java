@@ -1,4 +1,4 @@
-package com.zyc.netty;
+package com.zyc.mock.netty;
 
 import io.netty.buffer.Unpooled;
 import io.netty.channel.ChannelInboundHandlerAdapter;

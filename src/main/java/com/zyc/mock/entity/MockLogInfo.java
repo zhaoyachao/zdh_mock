@@ -1,4 +1,4 @@
-package com.zyc.entity;
+package com.zyc.mock.entity;
 
 public class MockLogInfo {
 

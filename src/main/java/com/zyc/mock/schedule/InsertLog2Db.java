@@ -1,8 +1,8 @@
-package com.zyc.schedule;
+package com.zyc.mock.schedule;
 
-import com.zyc.entity.MockLogInfo;
-import com.zyc.service.InsertLogServiceImpl;
-import com.zyc.util.DbUtils;
+import com.zyc.mock.entity.MockLogInfo;
+import com.zyc.mock.service.InsertLogServiceImpl;
+import com.zyc.mock.util.DbUtils;
 
 import java.util.concurrent.BlockingDeque;
 import java.util.concurrent.LinkedBlockingDeque;

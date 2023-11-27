@@ -1,11 +1,8 @@
-package com.zyc.util;
+package com.zyc.mock.util;
 
 import com.alibaba.druid.pool.DruidDataSourceFactory;
 
 import javax.sql.DataSource;
-import java.io.File;
-import java.io.FileInputStream;
-import java.io.InputStream;
 import java.sql.*;
 import java.util.*;
 

@@ -1,7 +1,7 @@
-package com.zyc.service;
+package com.zyc.mock.service;
 
-import com.zyc.entity.MockLogInfo;
-import com.zyc.util.DbUtils;
+import com.zyc.mock.entity.MockLogInfo;
+import com.zyc.mock.util.DbUtils;
 
 public class InsertLogServiceImpl {
     private DbUtils dbUtils;
