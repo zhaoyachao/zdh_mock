@@ -3,6 +3,7 @@ package com.zyc.mock.netty;
 
 import cn.hutool.core.text.StrFormatter;
 import com.alibaba.fastjson.JSON;
+import com.alibaba.fastjson.JSONObject;
 import com.hubspot.jinjava.Jinjava;
 import com.zyc.mock.entity.MockDataInfo;
 import com.zyc.mock.entity.MockLogInfo;
@@ -227,36 +228,61 @@ public class HttpServerHandler extends HttpBaseHandler{
     }
 
     private HttpResponse shortUrlGenerator(Map<String,Object> param){
-        String path = NettyServer.properties.getProperty("short.path", "./data/short");
-        String id_path = NettyServer.properties.getProperty("short.pathid", "./data/shortid");
-        String server_context = NettyServer.properties.getProperty("short.server", "/d/");
+        try{
+            String path = NettyServer.properties.getProperty("short.path", "./data/short");
+            String id_path = NettyServer.properties.getProperty("short.pathid", "./data/shortid");
+            String server_context = NettyServer.properties.getProperty("short.server", "/d/");
 
-        Long short_id = RocksDBUtil.getIncr(id_path, "short_id");
+            Long short_id = RocksDBUtil.getIncr(id_path, "short_id");
 
-        String remote_url = param.get("url").toString();
-        String short_url = server_context+ShortUrlUtil.generateShortLink(remote_url+"_"+short_id);
-        RocksDBUtil.put(path, short_url, remote_url);
-        String resp = short_url;
-        DefaultFullHttpResponse response = new DefaultFullHttpResponse(
-                HttpVersion.HTTP_1_1,
-                HttpResponseStatus.METHOD_NOT_ALLOWED,
-                Unpooled.wrappedBuffer(resp.getBytes(Charset.forName("utf-8")))
-        );
-        response.headers().setInt(ContentLength, response.content().readableBytes());
-        return response;
+            String remote_url = param.get("url").toString();
+            String short_url = server_context+ShortUrlUtil.generateShortLink(remote_url+"_"+short_id);
+            RocksDBUtil.put(path, short_url, remote_url);
+            JSONObject jsonObject = new JSONObject();
+            jsonObject.put("short_url", short_url);
+            String resp = jsonObject.toJSONString();
+            DefaultFullHttpResponse response = new DefaultFullHttpResponse(
+                    HttpVersion.HTTP_1_1,
+                    HttpResponseStatus.OK,
+                    Unpooled.wrappedBuffer(resp.getBytes(Charset.forName("utf-8")))
+            );
+            response.headers().setInt(ContentLength, response.content().readableBytes());
+            return response;
+        }catch (Exception e){
+            DefaultFullHttpResponse response = new DefaultFullHttpResponse(
+                    HttpVersion.HTTP_1_1,
+                    HttpResponseStatus.EXPECTATION_FAILED,
+                    Unpooled.wrappedBuffer(e.getMessage().getBytes())
+            );
+            response.headers().setInt(ContentLength, response.content().readableBytes());
+
+            return response;
+        }
+
     }
 
     private HttpResponse shortUrlCallBack(String url){
-        String path = NettyServer.properties.getProperty("short.path", "./data/short");
-        String resp = RocksDBUtil.get(path, url);
+        try{
+            String path = NettyServer.properties.getProperty("short.path", "./data/short");
+            String resp = RocksDBUtil.get(path, url);
 
-        DefaultFullHttpResponse response = new DefaultFullHttpResponse(
-                HttpVersion.HTTP_1_1,
-                HttpResponseStatus.FOUND
-        );
-        response.headers().set("Location",resp);
-        response.headers().setInt(ContentLength, response.content().readableBytes());
-        return response;
+            DefaultFullHttpResponse response = new DefaultFullHttpResponse(
+                    HttpVersion.HTTP_1_1,
+                    HttpResponseStatus.FOUND
+            );
+            response.headers().set("Location",resp);
+            response.headers().setInt(ContentLength, response.content().readableBytes());
+            return response;
+        }catch (Exception e){
+            DefaultFullHttpResponse response = new DefaultFullHttpResponse(
+                    HttpVersion.HTTP_1_1,
+                    HttpResponseStatus.EXPECTATION_FAILED,
+                    Unpooled.wrappedBuffer(e.getMessage().getBytes())
+            );
+            response.headers().setInt(ContentLength, response.content().readableBytes());
+
+            return response;
+        }
     }
 
     public MockLogInfo mockLogInfo(String job_id, String request_id, String level, String msg){
