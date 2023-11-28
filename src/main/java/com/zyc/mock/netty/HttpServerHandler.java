@@ -9,6 +9,7 @@ import com.zyc.mock.entity.MockLogInfo;
 import com.zyc.mock.schedule.InsertLog2Db;
 import com.zyc.mock.schedule.LoadData2Memory;
 import com.zyc.mock.util.RocksDBUtil;
+import com.zyc.mock.util.ShortUrlUtil;
 import io.netty.buffer.Unpooled;
 import io.netty.channel.ChannelFutureListener;
 import io.netty.channel.ChannelHandlerContext;
@@ -110,38 +111,16 @@ public class HttpServerHandler extends HttpBaseHandler{
         logger.info("request:{}, 接收到请求:{}, 请求类型:{}", request_id, uri, method);
         MockLogInfo mockLogInfo=new MockLogInfo();
         try{
+            String server_context = NettyServer.properties.getProperty("short.server", "/d/");
             //解析参数
             Map<String,Object> param = getReqContent(request);
             String resp = "";
             //根据uri 匹配数据库中mock数据
             String url=uri.split("\\?")[0];
             if(url.equalsIgnoreCase("/api/short/generator")){
-                String path = NettyServer.properties.getProperty("short.path", "./data/short");
-                String id_path = NettyServer.properties.getProperty("short.pathid", "./data/shortid");
-                Long short_id = RocksDBUtil.getIncr(id_path, "short_id");
-                String short_url = "/d/"+short_id;
-                String remote_url = param.get("url").toString();
-                RocksDBUtil.put(path, short_url, remote_url);
-                resp = short_url;
-                DefaultFullHttpResponse response = new DefaultFullHttpResponse(
-                        HttpVersion.HTTP_1_1,
-                        HttpResponseStatus.METHOD_NOT_ALLOWED,
-                        Unpooled.wrappedBuffer(resp.getBytes(Charset.forName("utf-8")))
-                );
-                response.headers().setInt(ContentLength, response.content().readableBytes());
-                return response;
-
-            }else if(url.startsWith("/d/")){
-                String path = NettyServer.properties.getProperty("short.path", "./data/short");
-                resp = RocksDBUtil.get(path, url);
-
-                DefaultFullHttpResponse response = new DefaultFullHttpResponse(
-                        HttpVersion.HTTP_1_1,
-                        HttpResponseStatus.FOUND
-                );
-                response.headers().set("Location",resp);
-                response.headers().setInt(ContentLength, response.content().readableBytes());
-                return response;
+                return shortUrlGenerator(param);
+            }else if(url.startsWith(server_context)){
+                return shortUrlCallBack(url);
             }
             if(LoadData2Memory.mockDataInfos.containsKey(url)){
                 MockDataInfo mockDataInfo= LoadData2Memory.mockDataInfos.get(url);
@@ -245,7 +224,39 @@ public class HttpServerHandler extends HttpBaseHandler{
             return response;
         }
 
+    }
 
+    private HttpResponse shortUrlGenerator(Map<String,Object> param){
+        String path = NettyServer.properties.getProperty("short.path", "./data/short");
+        String id_path = NettyServer.properties.getProperty("short.pathid", "./data/shortid");
+        String server_context = NettyServer.properties.getProperty("short.server", "/d/");
+
+        Long short_id = RocksDBUtil.getIncr(id_path, "short_id");
+
+        String remote_url = param.get("url").toString();
+        String short_url = server_context+ShortUrlUtil.generateShortLink(remote_url+"_"+short_id);
+        RocksDBUtil.put(path, short_url, remote_url);
+        String resp = short_url;
+        DefaultFullHttpResponse response = new DefaultFullHttpResponse(
+                HttpVersion.HTTP_1_1,
+                HttpResponseStatus.METHOD_NOT_ALLOWED,
+                Unpooled.wrappedBuffer(resp.getBytes(Charset.forName("utf-8")))
+        );
+        response.headers().setInt(ContentLength, response.content().readableBytes());
+        return response;
+    }
+
+    private HttpResponse shortUrlCallBack(String url){
+        String path = NettyServer.properties.getProperty("short.path", "./data/short");
+        String resp = RocksDBUtil.get(path, url);
+
+        DefaultFullHttpResponse response = new DefaultFullHttpResponse(
+                HttpVersion.HTTP_1_1,
+                HttpResponseStatus.FOUND
+        );
+        response.headers().set("Location",resp);
+        response.headers().setInt(ContentLength, response.content().readableBytes());
+        return response;
     }
 
     public MockLogInfo mockLogInfo(String job_id, String request_id, String level, String msg){
