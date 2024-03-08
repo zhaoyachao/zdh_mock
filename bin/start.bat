@@ -1,1 +1,1 @@
-java -Dloader.path=libs/,conf/ -Xss512M -jar zdh_mock.jar
+java -Dloader.path=libs/,conf/ -Xms512M -jar zdh_mock.jar
