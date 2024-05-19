@@ -234,13 +234,13 @@ public class HttpServerHandler extends HttpBaseHandler{
             String host = NettyServer.properties.getProperty("short.host", "http://127.0.0.1:9001");
             String server_context = NettyServer.properties.getProperty("short.server", "/d/");
 
-            Long short_id = RocksDBUtil.getIncr(id_path, "short_id");
+            //Long short_id = RocksDBUtil.getIncr(id_path, "short_id");
 
             String remote_url = param.get("url").toString();
-            String short_url = host+server_context+ShortUrlUtil.generateShortLink(remote_url+"_"+short_id);
+            String short_url = server_context+ShortUrlUtil.generateShortLink(remote_url);
             RocksDBUtil.put(path, short_url, remote_url);
             JSONObject jsonObject = new JSONObject();
-            jsonObject.put("short_url", short_url);
+            jsonObject.put("short_url", host+short_url);
             String resp = jsonObject.toJSONString();
             DefaultFullHttpResponse response = new DefaultFullHttpResponse(
                     HttpVersion.HTTP_1_1,
