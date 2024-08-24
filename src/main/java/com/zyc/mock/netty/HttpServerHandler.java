@@ -230,15 +230,29 @@ public class HttpServerHandler extends HttpBaseHandler{
     private HttpResponse shortUrlGenerator(Map<String,Object> param){
         try{
             String path = NettyServer.properties.getProperty("short.path", "./data/short");
-            String id_path = NettyServer.properties.getProperty("short.pathid", "./data/shortid");
+            String long_path = NettyServer.properties.getProperty("long.path", "./data/long");
             String host = NettyServer.properties.getProperty("short.host", "http://127.0.0.1:9001");
             String server_context = NettyServer.properties.getProperty("short.server", "/d/");
 
-            //Long short_id = RocksDBUtil.getIncr(id_path, "short_id");
 
             String remote_url = param.get("url").toString();
-            String short_url = server_context+ShortUrlUtil.generateShortLink(remote_url);
+            String use_cache = param.getOrDefault("use_cache", "false").toString();
+            String short_url = "";
+            if(use_cache.equalsIgnoreCase("true")){
+                String cache_short_url = RocksDBUtil.get(long_path, remote_url);
+                if(!StringUtils.isEmpty(cache_short_url)){
+                    short_url = cache_short_url;
+                }
+            }
+
+            if(StringUtils.isEmpty(short_url)){
+                short_url = server_context+ShortUrlUtil.generateShortLink(remote_url);
+            }
+
             RocksDBUtil.put(path, short_url, remote_url);
+            //记录长链接
+            RocksDBUtil.put(long_path, remote_url, short_url);
+
             JSONObject jsonObject = new JSONObject();
             jsonObject.put("short_url", host+short_url);
             String resp = jsonObject.toJSONString();
