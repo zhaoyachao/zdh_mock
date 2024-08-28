@@ -86,7 +86,10 @@ public class HttpServerHandler extends HttpBaseHandler{
         if(request.method().name().equalsIgnoreCase(HttpMethod.GET.name())){
             return getParam(request.uri());
         }else if(request.method().name().equalsIgnoreCase(HttpMethod.POST.name())){
-            return getBody(request.content().toString(CharsetUtil.UTF_8));
+            Map getMap = getParam(request.uri());
+            Map postMap = getBody(request.content().toString(CharsetUtil.UTF_8));
+            postMap.putAll(getMap);
+            return postMap;
         }else if(request.method().name().equalsIgnoreCase(HttpMethod.PUT.name())){
             Map<String,Object> map = getParam(request.uri());
             map.putAll(getBody(request.content().toString(CharsetUtil.UTF_8)));
@@ -109,6 +112,7 @@ public class HttpServerHandler extends HttpBaseHandler{
         String request_id = UUID.randomUUID().toString();
         String uri = URLDecoder.decode(request.uri(), chartSet);
         String method = request.method().name();
+        List<Map.Entry<String, String>> headers = request.headers().entries();
         logger.info("request:{}, 接收到请求:{}, 请求类型:{}", request_id, uri, method);
         MockLogInfo mockLogInfo=new MockLogInfo();
         try{
