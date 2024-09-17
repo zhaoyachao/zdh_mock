@@ -37,7 +37,22 @@ public class HttpServerHandler extends HttpBaseHandler{
             500, // keep alive time
             TimeUnit.MILLISECONDS,
             new LinkedBlockingQueue<Runnable>()
-            );
+    );
+
+    public HttpServerHandler(Properties properties){
+        Integer corePoolSize = Integer.valueOf(properties.getProperty("core.pool.size", "1"));
+        Integer maxPoolSize = Integer.valueOf(properties.getProperty("max.pool.size", "2"));
+
+        threadpool = new ThreadPoolExecutor(
+                corePoolSize, // core pool size
+                maxPoolSize, // max pool size
+                500, // keep alive time
+                TimeUnit.MILLISECONDS,
+                new LinkedBlockingQueue<Runnable>()
+        );
+    }
+
+
 
     @Override
     public void channelRead(ChannelHandlerContext ctx, Object msg) throws Exception {

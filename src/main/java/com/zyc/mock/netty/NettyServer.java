@@ -33,9 +33,11 @@ public class NettyServer {
     public void bind(String host, String port) throws InterruptedException {
         //配置服务端线程池组
         //用于服务器接收客户端连接
-        NioEventLoopGroup bossGroup = new NioEventLoopGroup(1);
+        Integer bossThread = Integer.valueOf(properties.getProperty("boss.thread.num", "1"));
+        Integer workerThread = Integer.valueOf(properties.getProperty("worker.thread.num", "2"));
+        NioEventLoopGroup bossGroup = new NioEventLoopGroup(bossThread);
         //用户进行SocketChannel的网络读写
-        NioEventLoopGroup workerGroup = new NioEventLoopGroup(10);
+        NioEventLoopGroup workerGroup = new NioEventLoopGroup(workerThread);
 
         try {
             //是Netty用户启动NIO服务端的辅助启动类，降低服务端的开发复杂度
@@ -53,7 +55,7 @@ public class NettyServer {
                             ch.pipeline().addLast("aggregator", new HttpObjectAggregator(512*1024));
                             //压缩
                             ch.pipeline().addLast("deflater", new HttpContentCompressor());
-                            ch.pipeline().addLast(new HttpServerHandler());
+                            ch.pipeline().addLast(new HttpServerHandler(properties));
                         }
                     }).option(ChannelOption.SO_BACKLOG, 128)
                     .childOption(ChannelOption.SO_KEEPALIVE, true);
