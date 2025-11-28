@@ -30,26 +30,35 @@ import java.util.stream.Collectors;
 public class HttpServerHandler extends HttpBaseHandler{
     Logger logger= LoggerFactory.getLogger(HttpServerHandler.class);
 
-    //单线程线程池，同一时间只会有一个线程在运行,保证加载顺序
-    private ThreadPoolExecutor threadpool = new ThreadPoolExecutor(
-            1, // core pool size
-            1, // max pool size
-            500, // keep alive time
-            TimeUnit.MILLISECONDS,
-            new LinkedBlockingQueue<Runnable>()
-    );
+    // 业务处理线程池
+    private ThreadPoolExecutor threadpool;
 
     public HttpServerHandler(Properties properties){
-        Integer corePoolSize = Integer.valueOf(properties.getProperty("core.pool.size", "1"));
-        Integer maxPoolSize = Integer.valueOf(properties.getProperty("max.pool.size", "2"));
+        Integer corePoolSize = Integer.valueOf(properties.getProperty("core.pool.size", "10"));
+        Integer maxPoolSize = Integer.valueOf(properties.getProperty("max.pool.size", "50"));
+        Long keepAliveTime = Long.valueOf(properties.getProperty("thread.keepalive.time", "30"));
+        Integer queueCapacity = Integer.valueOf(properties.getProperty("thread.queue.capacity", "1000"));
 
+        // 使用有界队列避免内存溢出，并设置合理的拒绝策略
         threadpool = new ThreadPoolExecutor(
                 corePoolSize, // core pool size
                 maxPoolSize, // max pool size
-                500, // keep alive time
-                TimeUnit.MILLISECONDS,
-                new LinkedBlockingQueue<Runnable>()
+                keepAliveTime, // keep alive time
+                TimeUnit.SECONDS,
+                new LinkedBlockingQueue<>(queueCapacity),
+                r -> {
+                    Thread thread = new Thread(r);
+                    thread.setName("http-worker-" + thread.getId());
+                    return thread;
+                },
+                new ThreadPoolExecutor.CallerRunsPolicy() // 由调用线程执行任务，避免丢失请求
         );
+
+        // 允许核心线程超时回收
+        threadpool.allowCoreThreadTimeOut(true);
+
+        logger.info("初始化线程池: core={}, max={}, keepAlive={}s, queue={}",
+                   corePoolSize, maxPoolSize, keepAliveTime, queueCapacity);
     }
 
 
@@ -129,9 +138,11 @@ public class HttpServerHandler extends HttpBaseHandler{
         String method = request.method().name();
         List<Map.Entry<String, String>> headers = request.headers().entries();
         logger.info("request:{}, 接收到请求:{}, 请求类型:{}", request_id, uri, method);
+
         MockLogInfo mockLogInfo=new MockLogInfo();
         try{
             String server_context = NettyServer.properties.getProperty("short.server", "/d/");
+            String short_content_path = NettyServer.properties.getProperty("short.content.server", "/c/");
             //解析参数
             Map<String,Object> param = getReqContent(request);
             String resp = "";
@@ -140,6 +151,8 @@ public class HttpServerHandler extends HttpBaseHandler{
             if(url.equalsIgnoreCase("/api/short/generator")){
                 return shortUrlGenerator(param);
             }else if(url.startsWith(server_context)){
+                return shortUrlCallBack(url);
+            }else if(url.startsWith(short_content_path)){
                 return shortUrlCallBack(url);
             }
             if(LoadData2Memory.mockDataInfos.containsKey(url)){
@@ -250,30 +263,53 @@ public class HttpServerHandler extends HttpBaseHandler{
         try{
             String path = NettyServer.properties.getProperty("short.path", "./data/short");
             String long_path = NettyServer.properties.getProperty("long.path", "./data/long");
+            String content_path = NettyServer.properties.getProperty("content.path", "./data/content");
             String host = NettyServer.properties.getProperty("short.host", "http://127.0.0.1:9001");
             String server_context = NettyServer.properties.getProperty("short.server", "/d/");
+            String short_content_server = NettyServer.properties.getProperty("short.content.server", "/c/");
 
-
-            String remote_url = param.get("url").toString();
-            String use_cache = param.getOrDefault("use_cache", "false").toString();
             String short_url = "";
-            if(use_cache.equalsIgnoreCase("true")){
-                String cache_short_url = RocksDBUtil.get(long_path, remote_url);
-                if(!StringUtils.isEmpty(cache_short_url)){
-                    short_url = cache_short_url;
-                }
-            }
-
-            if(StringUtils.isEmpty(short_url)){
-                short_url = server_context+ShortUrlUtil.generateShortLink(remote_url);
-            }
-
-            RocksDBUtil.put(path, short_url, remote_url);
-            //记录长链接
-            RocksDBUtil.put(long_path, remote_url, short_url);
-
             JSONObject jsonObject = new JSONObject();
-            jsonObject.put("short_url", host+short_url);
+            String use_cache = param.getOrDefault("use_cache", "false").toString();
+
+            // 处理内容短链
+            if(param.containsKey("content")) {
+                String content = param.get("content").toString();
+                String cache_key = ShortUrlUtil.md5(content);
+                if(use_cache.equalsIgnoreCase("true")){
+                    String cache_short_url = RocksDBUtil.get(content_path, cache_key);
+                    if(!StringUtils.isEmpty(cache_short_url)){
+                        short_url = cache_short_url;
+                    }
+                }
+                if(StringUtils.isEmpty(short_url)){
+                    short_url = short_content_server+ShortUrlUtil.generateShortLink(content);
+                }
+
+                RocksDBUtil.put(path, short_url, content);
+                RocksDBUtil.put(content_path, cache_key, short_url);
+                jsonObject.put("short_url", host+short_url);
+            }
+            // 处理URL短链
+            else if(param.containsKey("url")) {
+                String remote_url = param.get("url").toString();
+
+                if(use_cache.equalsIgnoreCase("true")){
+                    String cache_short_url = RocksDBUtil.get(long_path, remote_url);
+                    if(!StringUtils.isEmpty(cache_short_url)){
+                        short_url = cache_short_url;
+                    }
+                }
+
+                if(StringUtils.isEmpty(short_url)){
+                    short_url = server_context+ShortUrlUtil.generateShortLink(remote_url);
+                }
+
+                RocksDBUtil.put(path, short_url, remote_url);
+                RocksDBUtil.put(long_path, remote_url, short_url);
+                jsonObject.put("short_url", host+short_url);
+            }
+
             String resp = jsonObject.toJSONString();
             DefaultFullHttpResponse response = new DefaultFullHttpResponse(
                     HttpVersion.HTTP_1_1,
@@ -295,18 +331,39 @@ public class HttpServerHandler extends HttpBaseHandler{
 
     }
 
+    /**
+     *
+     * @param url 完整短链 http://ip/d/xxxx, http://ip/c/xxxx
+     * @return
+     */
     private HttpResponse shortUrlCallBack(String url){
         try{
             String path = NettyServer.properties.getProperty("short.path", "./data/short");
-            String resp = RocksDBUtil.get(path, url);
+            String short_content_server = NettyServer.properties.getProperty("short.content.server", "/c/");
 
-            DefaultFullHttpResponse response = new DefaultFullHttpResponse(
+            // 处理内容短链
+            if(url.startsWith(short_content_server)) {
+                String content = RocksDBUtil.get(path, url);
+                DefaultFullHttpResponse response = new DefaultFullHttpResponse(
                     HttpVersion.HTTP_1_1,
-                    HttpResponseStatus.FOUND
-            );
-            response.headers().set("Location",resp);
-            response.headers().setInt(ContentLength, response.content().readableBytes());
-            return response;
+                    HttpResponseStatus.OK,
+                    Unpooled.wrappedBuffer(content.getBytes(Charset.forName("utf-8")))
+                );
+                response.headers().set(ContentType, "text/plain;charset=utf-8");
+                response.headers().setInt(ContentLength, response.content().readableBytes());
+                return response;
+            }
+            // 处理URL短链
+            else {
+                String resp = RocksDBUtil.get(path, url);
+                DefaultFullHttpResponse response = new DefaultFullHttpResponse(
+                        HttpVersion.HTTP_1_1,
+                        HttpResponseStatus.FOUND
+                );
+                response.headers().set("Location",resp);
+                response.headers().setInt(ContentLength, response.content().readableBytes());
+                return response;
+            }
         }catch (Exception e){
             DefaultFullHttpResponse response = new DefaultFullHttpResponse(
                     HttpVersion.HTTP_1_1,

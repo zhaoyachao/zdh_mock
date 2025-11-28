@@ -1,5 +1,6 @@
 package com.zyc.mock.netty;
 
+import com.zyc.mock.util.HostUtil;
 import io.netty.bootstrap.ServerBootstrap;
 import io.netty.channel.ChannelFuture;
 import io.netty.channel.ChannelInitializer;
@@ -14,6 +15,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
+import java.util.List;
 import java.util.Properties;
 
 
@@ -59,7 +61,12 @@ public class NettyServer {
                         }
                     }).option(ChannelOption.SO_BACKLOG, 128)
                     .childOption(ChannelOption.SO_KEEPALIVE, true);
+
+            List<String> ipAddress = HostUtil.getIpAddress();
             logger.info("启动完成");
+            for (String ip : ipAddress) {
+                logger.info("可访问地址 http://{}:{}", ip, port);
+            }
             //绑定端口，调用sync方法等待绑定操作完成
             ChannelFuture channelFuture = bootstrap.bind(Integer.parseInt(port)).sync();
             //等待服务关闭
