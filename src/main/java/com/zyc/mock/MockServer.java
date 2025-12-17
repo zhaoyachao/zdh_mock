@@ -1,23 +1,16 @@
 package com.zyc.mock;
 
+import com.zyc.mock.netty.NettyServer;
+import com.zyc.mock.schedule.InsertLog2Db;
+import com.zyc.mock.schedule.LoadData2Memory;
+import com.zyc.mock.util.DbUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.zyc.mock.util.DbUtils;
-import com.zyc.mock.schedule.LoadData2Memory;
-import com.zyc.mock.schedule.InsertLog2Db;
-import com.zyc.mock.netty.NettyServer;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
-import java.net.Inet4Address;
-import java.net.InetAddress;
-import java.net.NetworkInterface;
-import java.net.SocketException;
-import java.util.Enumeration;
-import java.util.LinkedList;
-import java.util.List;
 import java.util.Properties;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
